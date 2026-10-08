@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pingvelcake – Demo Sistem Pencatatan Keuangan</title>
+    <meta name="description" content="Demo interaktif sistem pencatatan keuangan usaha kue Pingvel Cake: pemasukan, pengeluaran per pos biaya, rekap bulanan, dan catatan arus kas. Semua data fiktif.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Pingvel Cake – Sistem Pencatatan Keuangan (Demo)">
+    <meta property="og:description" content="Coba langsung pencatatan pemasukan, pengeluaran, rekap bulanan, dan arus kas. Aplikasi aslinya dibangun dengan Laravel 12 dan MySQL.">
+    <meta property="og:image" content="https://mayow09.github.io/sistem-keuangan-pingvelcake/screenshots/pemasukan.png">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%82%3C/text%3E%3C/svg%3E">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Gaya dari resources/views/layouts/app.blade.php (aplikasi asli) */
+        body { background-color: #f8f9fa; }
+        .navbar { background-color: #343a40 !important; }
+        .container { margin: 0px; min-width: 100%; }
+        .table {
+            background-color: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-top: 30px;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+        .table th, .table td { padding: 12px 15px; text-align: center; vertical-align: middle; }
+        .table thead { background-color: #007bff; color: white; font-weight: bold; }
+        .table tbody tr { border-bottom: 1px solid #dee2e6; background-color: #f8f9fa; }
+        .table tbody tr:nth-of-type(even) { background-color: #e9ecef; }
+        .table td { border-right: 1px solid #dee2e6; }
+        .table td:last-child { border-right: none; }
+        .btn-primary, .btn-success { border-radius: 5px; padding: 8px 12px; }
+        .btn-danger { border-radius: 5px; padding: 6px 10px; }
+        .modal-content { border-radius: 10px; padding: 15px; }
+        .table tbody tr:hover { background-color: #d6e4ff; transition: 0.3s; }
+        .detail-modal p.form-control { background-color: #f9f9f9; border: none; padding: 6px 10px; font-size: 14px; min-height: 2.2em; margin-bottom: 0; }
+        .detail-modal .detail-label { display: block; font-weight: bold; margin-bottom: 3px; }
+        .detail-modal .modal-body { padding: 20px; }
+        .detail-modal table { margin-top: 15px; border-collapse: collapse; width: 100%; }
+        .detail-modal table th, .detail-modal table td { padding: 8px 12px; border: 1px solid #dee2e6; font-size: 14px; }
+        .detail-modal table th { background-color: #f1f1f1; font-weight: bold; }
+
+        /* Tambahan khusus versi demo */
+        .demo-bar { background: #fff3cd; color: #664d03; border-bottom: 1px solid #ffe69c; font-size: .9rem; }
+        .demo-bar .inner { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .5rem 1rem; }
+        .demo-bar .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-left: auto; }
+        .demo-bar a { color: #664d03; font-weight: 600; }
+        .page-actions { display: flex; flex-wrap: wrap; gap: .25rem; }
+        #printArea { display: none; }
+
+        @media print {
+            @page { size: landscape; margin: 12mm; }
+            body { background: #fff; }
+            body > *:not(#printArea) { display: none !important; }
+            #printArea { display: block; font-family: Arial, sans-serif; color: #000; }
+            #printArea h2 { font-size: 20px; margin-bottom: 12px; }
+            #printArea table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            #printArea th, #printArea td { border: 1px solid #000; padding: 8px; text-align: left; }
+            #printArea th { background-color: #f2f2f2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#pemasukan">pingvelcake</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Buka menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link" href="#pemasukan" data-route="pemasukan">Pemasukan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#pengeluaran" data-route="pengeluaran">Pengeluaran</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#rekap" data-route="rekap">Rekap</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#cashflow" data-route="cashflow">Cashflow Note</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="demo-bar">
+        <div class="inner">
+            <span>Ini versi demo dengan data fiktif. Perubahan yang Anda buat hanya tersimpan di browser ini.</span>
+            <span class="actions">
+                <a href="https://github.com/mayow09/sistem-keuangan-pingvelcake">Lihat kode di GitHub</a>
+                <button type="button" class="btn btn-sm btn-outline-dark" data-act="reset">Kembalikan data awal</button>
+            </span>
+        </div>
+    </div>
+
+    <main class="container mt-4">
+        <h1 class="visually-hidden">Demo sistem pencatatan keuangan pingvelcake</h1>
+        <div id="flash" aria-live="polite"></div>
+
+        <!-- PEMASUKAN -->
+        <section data-page="pemasukan">
+            <h2>Pemasukan</h2>
+            <div class="page-actions">
+                <button type="button" class="btn btn-primary" data-act="tambah-pemasukan">Tambah Pemasukan</button>
+                <button type="button" class="btn btn-success" data-act="laporan" title="Membuka dialog cetak. Pilih Simpan sebagai PDF untuk mengunduh.">Unduh Laporan PDF</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Nomor Invoice</th>
+                            <th>Customer</th>
+                            <th>No HP/WA</th>
+                            <th>Social Media Account</th>
+                            <th>Pengiriman</th>
+                            <th>Total Transaksi</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyPemasukan"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- PENGELUARAN -->
+        <section data-page="pengeluaran" hidden>
+            <h2>Daftar Pengeluaran</h2>
+            <button type="button" class="btn btn-primary" data-act="tambah-pengeluaran">Tambah Pengeluaran</button>
+            <div class="table-responsive">
+                <table class="table mt-3">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Nomor Bill</th>
+                            <th>Tanggal</th>
+                            <th>Penjual</th>
+                            <th>Total</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyPengeluaran"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- REKAP -->
+        <section data-page="rekap" hidden>
+            <h2>Rekap Pemasukan &amp; Pengeluaran</h2>
+            <form id="formRekap" class="mb-3">
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto"><label for="filterBulan" class="col-form-label">Filter Bulan:</label></div>
+                    <div class="col-auto"><input type="month" id="filterBulan" class="form-control"></div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                        <button type="button" class="btn btn-secondary" data-act="reset-rekap">Reset</button>
+                    </div>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Bulan</th>
+                            <th>Pemasukan</th>
+                            <th>Pengeluaran</th>
+                            <th>Margin</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyRekap"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- CASHFLOW -->
+        <section data-page="cashflow" hidden>
+            <h2 class="text-center">Catatan Cashflow</h2>
+            <form id="formCashflow" class="mb-4">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label for="startDate">Tanggal Mulai:</label>
+                        <input type="date" id="startDate" class="form-control" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="endDate">Tanggal Akhir:</label>
+                        <input type="date" id="endDate" class="form-control" required>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </form>
+            <div id="cashflowMsg"></div>
+            <div class="row mt-3" id="cashflowGrid"></div>
+        </section>
+    </main>
+
+    <!-- MODAL: tambah / edit pemasukan -->
+    <div class="modal fade" id="modalPemasukan" tabindex="-1" aria-labelledby="modalPemasukanTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalPemasukanTitle">Tambah Pemasukan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formPemasukan">
+                        <div class="alert alert-danger d-none" role="alert" data-error></div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="p_nomor_invoice" class="form-label">Nomor Invoice</label>
+                                <input type="text" id="p_nomor_invoice" class="form-control" readonly placeholder="Terisi otomatis setelah tanggal dipilih">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="p_tanggal" class="form-label">Tanggal</label>
+                                <input type="date" id="p_tanggal" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="p_customer" class="form-label">Customer</label>
+                                <input type="text" id="p_customer" class="form-control" required maxlength="255">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="p_no_hp" class="form-label">No HP</label>
+                                <input type="text" id="p_no_hp" class="form-control" required maxlength="15" inputmode="tel">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="p_social_media" class="form-label">Social Media</label>
+                                <input type="text" id="p_social_media" class="form-control" maxlength="255">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="p_pengiriman" class="form-label">Pengiriman</label>
+                                <select id="p_pengiriman" class="form-select" required>
+                                    <option value="delivery">Delivery</option>
+                                    <option value="gosend">Gosend</option>
+                                    <option value="grabExpress">GrabExpress</option>
+                                    <option value="paxel">Paxel</option>
+                                    <option value="self pickup">Self-Pickup</option>
+                                    <option value="travel">Travel</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row" id="p_jadwal_row" hidden>
+                            <div class="col-md-6 mb-3">
+                                <label for="p_jadwal_pickup" class="form-label">Jadwal Pickup</label>
+                                <input type="datetime-local" id="p_jadwal_pickup" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="p_sub_total" class="form-label">Subtotal</label>
+                                <input type="number" id="p_sub_total" class="form-control" required min="0" step="any">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="p_diskon" class="form-label">Diskon</label>
+                                <input type="number" id="p_diskon" class="form-control" min="0" step="any" value="0">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="p_ongkir" class="form-label">Ongkir</label>
+                                <input type="number" id="p_ongkir" class="form-control" min="0" step="any" value="0">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="p_total" class="form-label">Total Transaksi</label>
+                                <input type="text" id="p_total" class="form-control" readonly>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="p_submit">Simpan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: detail pemasukan -->
+    <div class="modal fade detail-modal" id="modalDetailPemasukan" tabindex="-1" aria-labelledby="modalDetailPemasukanTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalDetailPemasukanTitle">Detail Pemasukan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><span class="detail-label">Nomor Invoice</span><p class="form-control" id="dp_nomor_invoice"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Tanggal</span><p class="form-control" id="dp_tanggal"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Customer</span><p class="form-control" id="dp_customer"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">No HP</span><p class="form-control" id="dp_no_hp"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Social Media</span><p class="form-control" id="dp_social_media"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Pengiriman</span><p class="form-control" id="dp_pengiriman"></p></div>
+                        <div class="col-md-6 mb-3" id="dp_jadwal_wrap"><span class="detail-label">Jadwal Pickup</span><p class="form-control" id="dp_jadwal_pickup"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Subtotal</span><p class="form-control" id="dp_sub_total"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Diskon</span><p class="form-control" id="dp_diskon"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Ongkir</span><p class="form-control" id="dp_ongkir"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Total Transaksi</span><p class="form-control" id="dp_total_transaksi"></p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: tambah / edit pengeluaran -->
+    <div class="modal fade" id="modalPengeluaran" tabindex="-1" aria-labelledby="modalPengeluaranTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalPengeluaranTitle">Tambah Pengeluaran</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formPengeluaran">
+                        <div class="alert alert-danger d-none" role="alert" data-error></div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="g_nomor_bill" class="form-label">Nomor Bill</label>
+                                <input type="text" id="g_nomor_bill" class="form-control" required maxlength="100">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="g_tanggal" class="form-label">Tanggal</label>
+                                <input type="date" id="g_tanggal" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="g_jenis" class="form-label">Tipe Pembelian</label>
+                                <select id="g_jenis" class="form-select">
+                                    <option value="ecommerce" selected>Ecommerce</option>
+                                    <option value="offline store">Offline Store</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="g_penjual" class="form-label">Penjual</label>
+                                <input type="text" id="g_penjual" class="form-control" required maxlength="255">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="g_tujuan" class="form-label">Tujuan</label>
+                                <select id="g_tujuan" class="form-select" required>
+                                    <option value="" disabled selected>Pilih Tujuan</option>
+                                    <option value="Restock Bahan">Restock Bahan</option>
+                                    <option value="Restock Packaging">Restock Packaging</option>
+                                    <option value="Restock Decorative">Restock Decorative</option>
+                                    <option value="Pengadaan">Pengadaan</option>
+                                    <option value="RnD">RnD</option>
+                                    <option value="Promote">Promote</option>
+                                    <option value="WFC">WFC</option>
+                                    <option value="Reward Staf">Reward Staf</option>
+                                    <option value="Diskon Pelanggan">Diskon Pelanggan</option>
+                                    <option value="Operasional">Operasional</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="g_ongkir" class="form-label">Ongkir/PPN/Disc</label>
+                                <input type="number" id="g_ongkir" class="form-control" step="any" value="0">
+                            </div>
+                        </div>
+                        <div class="mb-3" id="g_offline_extra" hidden>
+                            <label for="g_cp_offline" class="form-label">Kontak Person (Offline Store)</label>
+                            <input type="text" id="g_cp_offline" class="form-control" placeholder="Nama / No HP toko offline">
+                        </div>
+
+                        <h5>Rincian Pesanan</h5>
+                        <div id="g_rincian"></div>
+                        <button type="button" class="btn btn-sm btn-secondary mb-3" data-act="tambah-rincian">Tambah Rincian</button>
+
+                        <div class="mb-3">
+                            <label for="g_total" class="form-label">Total Transaksi</label>
+                            <input type="text" id="g_total" class="form-control" readonly>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="g_submit">Simpan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: detail pengeluaran -->
+    <div class="modal fade detail-modal" id="modalDetailPengeluaran" tabindex="-1" aria-labelledby="modalDetailPengeluaranTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalDetailPengeluaranTitle">Detail Pengeluaran</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><span class="detail-label">Nomor Bill</span><p class="form-control" id="dg_nomor_bill"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Tanggal</span><p class="form-control" id="dg_tanggal"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Jenis</span><p class="form-control" id="dg_jenis"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Penjual</span><p class="form-control" id="dg_penjual"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Tujuan</span><p class="form-control" id="dg_tujuan"></p></div>
+                        <div class="col-md-6 mb-3"><span class="detail-label">Ongkir/PPN/Disc</span><p class="form-control" id="dg_ongkir_ppn_disc"></p></div>
+                        <div class="col-md-6 mb-3" id="dg_cp_wrap"><span class="detail-label">Kontak Person (Offline Store)</span><p class="form-control" id="dg_cp_offline"></p></div>
+                        <div class="col-12 mb-3"><span class="detail-label">Total</span><p class="form-control" id="dg_total"></p></div>
+                    </div>
+                    <span class="detail-label mt-2">Rincian Produk</span>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nama Barang</th>
+                                    <th>Qty</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dg_rincian"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="printArea"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    (() => {
+        'use strict';
+
+        // Data fiktif, sama dengan screenshot di README.
+        const SEED = {"pemasukan":[{"id":1,"nomor_invoice":"010225","tanggal":"2025-02-03","customer":"Rina Wulandari","no_hp":"0812-0000-0101","social_media":"Instagram","pengiriman":"self pickup","sub_total":185000,"diskon":0,"ongkir":0,"total_transaksi":185000,"jadwal_pickup":"2025-02-03 15:00:00"},{"id":2,"nomor_invoice":"020225","tanggal":"2025-02-07","customer":"Bagus Pratama","no_hp":"0812-0000-0102","social_media":"WhatsApp","pengiriman":"paxel","sub_total":250000,"diskon":0,"ongkir":28000,"total_transaksi":278000,"jadwal_pickup":null},{"id":3,"nomor_invoice":"030225","tanggal":"2025-02-10","customer":"Sekar Ayu","no_hp":"0812-0000-0103","social_media":"Instagram","pengiriman":"self pickup","sub_total":320000,"diskon":15000,"ongkir":0,"total_transaksi":305000,"jadwal_pickup":"2025-02-10 15:00:00"},{"id":4,"nomor_invoice":"040225","tanggal":"2025-02-13","customer":"Dimas Aditya","no_hp":"0812-0000-0104","social_media":"TikTok","pengiriman":"paxel","sub_total":450000,"diskon":20000,"ongkir":32000,"total_transaksi":462000,"jadwal_pickup":null},{"id":5,"nomor_invoice":"050225","tanggal":"2025-02-14","customer":"Nadia Putri","no_hp":"0812-0000-0105","social_media":"Instagram","pengiriman":"self pickup","sub_total":275000,"diskon":0,"ongkir":0,"total_transaksi":275000,"jadwal_pickup":"2025-02-14 15:00:00"},{"id":6,"nomor_invoice":"060225","tanggal":"2025-02-18","customer":"Fajar Nugroho","no_hp":"0812-0000-0106","social_media":"WhatsApp","pengiriman":"travel","sub_total":390000,"diskon":0,"ongkir":45000,"total_transaksi":435000,"jadwal_pickup":null},{"id":7,"nomor_invoice":"070225","tanggal":"2025-02-22","customer":"Laras Kinasih","no_hp":"0812-0000-0107","social_media":"Instagram","pengiriman":"self pickup","sub_total":160000,"diskon":0,"ongkir":0,"total_transaksi":160000,"jadwal_pickup":"2025-02-22 15:00:00"},{"id":8,"nomor_invoice":"080225","tanggal":"2025-02-27","customer":"Yoga Saputra","no_hp":"0812-0000-0108","social_media":"TikTok","pengiriman":"paxel","sub_total":210000,"diskon":10000,"ongkir":25000,"total_transaksi":225000,"jadwal_pickup":null},{"id":9,"nomor_invoice":"010325","tanggal":"2025-03-01","customer":"Ayu Lestari","no_hp":"0812-0000-0109","social_media":"Instagram","pengiriman":"self pickup","sub_total":230000,"diskon":0,"ongkir":0,"total_transaksi":230000,"jadwal_pickup":"2025-03-01 15:00:00"},{"id":10,"nomor_invoice":"020325","tanggal":"2025-03-04","customer":"Rizky Maulana","no_hp":"0812-0000-0110","social_media":"WhatsApp","pengiriman":"paxel","sub_total":345000,"diskon":15000,"ongkir":30000,"total_transaksi":360000,"jadwal_pickup":null},{"id":11,"nomor_invoice":"030325","tanggal":"2025-03-08","customer":"Putri Anggraini","no_hp":"0812-0000-0111","social_media":"Instagram","pengiriman":"self pickup","sub_total":520000,"diskon":25000,"ongkir":0,"total_transaksi":495000,"jadwal_pickup":"2025-03-08 15:00:00"},{"id":12,"nomor_invoice":"040325","tanggal":"2025-03-11","customer":"Hendra Wijaya","no_hp":"0812-0000-0112","social_media":"TikTok","pengiriman":"travel","sub_total":410000,"diskon":0,"ongkir":50000,"total_transaksi":460000,"jadwal_pickup":null},{"id":13,"nomor_invoice":"050325","tanggal":"2025-03-15","customer":"Citra Melati","no_hp":"0812-0000-0113","social_media":"Instagram","pengiriman":"self pickup","sub_total":190000,"diskon":0,"ongkir":0,"total_transaksi":190000,"jadwal_pickup":"2025-03-15 15:00:00"},{"id":14,"nomor_invoice":"060325","tanggal":"2025-03-19","customer":"Galih Ramadhan","no_hp":"0812-0000-0114","social_media":"WhatsApp","pengiriman":"paxel","sub_total":285000,"diskon":0,"ongkir":28000,"total_transaksi":313000,"jadwal_pickup":null},{"id":15,"nomor_invoice":"070325","tanggal":"2025-03-24","customer":"Intan Permata","no_hp":"0812-0000-0115","social_media":"Instagram","pengiriman":"self pickup","sub_total":360000,"diskon":20000,"ongkir":0,"total_transaksi":340000,"jadwal_pickup":"2025-03-24 15:00:00"},{"id":16,"nomor_invoice":"080325","tanggal":"2025-03-27","customer":"Teguh Santoso","no_hp":"0812-0000-0116","social_media":"TikTok","pengiriman":"paxel","sub_total":240000,"diskon":0,"ongkir":26000,"total_transaksi":266000,"jadwal_pickup":null},{"id":17,"nomor_invoice":"010425","tanggal":"2025-04-02","customer":"Wulan Sari","no_hp":"0812-0000-0117","social_media":"Instagram","pengiriman":"self pickup","sub_total":275000,"diskon":0,"ongkir":0,"total_transaksi":275000,"jadwal_pickup":"2025-04-02 15:00:00"},{"id":18,"nomor_invoice":"020425","tanggal":"2025-04-05","customer":"Arif Hidayat","no_hp":"0812-0000-0118","social_media":"WhatsApp","pengiriman":"paxel","sub_total":480000,"diskon":20000,"ongkir":32000,"total_transaksi":492000,"jadwal_pickup":null},{"id":19,"nomor_invoice":"030425","tanggal":"2025-04-08","customer":"Maya Kusuma","no_hp":"0812-0000-0119","social_media":"Instagram","pengiriman":"self pickup","sub_total":215000,"diskon":0,"ongkir":0,"total_transaksi":215000,"jadwal_pickup":"2025-04-08 15:00:00"},{"id":20,"nomor_invoice":"040425","tanggal":"2025-04-09","customer":"Bima Satria","no_hp":"0812-0000-0120","social_media":"TikTok","pengiriman":"travel","sub_total":395000,"diskon":15000,"ongkir":48000,"total_transaksi":428000,"jadwal_pickup":null},{"id":21,"nomor_invoice":"050425","tanggal":"2025-04-11","customer":"Dewi Anjani","no_hp":"0812-0000-0121","social_media":"Instagram","pengiriman":"self pickup","sub_total":330000,"diskon":0,"ongkir":0,"total_transaksi":330000,"jadwal_pickup":"2025-04-11 15:00:00"},{"id":22,"nomor_invoice":"060425","tanggal":"2025-04-12","customer":"Raka Firmansyah","no_hp":"0812-0000-0122","social_media":"WhatsApp","pengiriman":"paxel","sub_total":260000,"diskon":10000,"ongkir":27000,"total_transaksi":277000,"jadwal_pickup":null},{"id":23,"nomor_invoice":"070425","tanggal":"2025-04-17","customer":"Salsa Nabila","no_hp":"0812-0000-0123","social_media":"Instagram","pengiriman":"self pickup","sub_total":540000,"diskon":25000,"ongkir":0,"total_transaksi":515000,"jadwal_pickup":"2025-04-17 15:00:00"},{"id":24,"nomor_invoice":"080425","tanggal":"2025-04-23","customer":"Eko Prasetyo","no_hp":"0812-0000-0124","social_media":"TikTok","pengiriman":"paxel","sub_total":305000,"diskon":0,"ongkir":30000,"total_transaksi":335000,"jadwal_pickup":null},{"id":25,"nomor_invoice":"090425","tanggal":"2025-04-28","customer":"Nina Rahmawati","no_hp":"0812-0000-0125","social_media":"Instagram","pengiriman":"self pickup","sub_total":225000,"diskon":0,"ongkir":0,"total_transaksi":225000,"jadwal_pickup":"2025-04-28 15:00:00"}],"pengeluaran":[{"id":1,"nomor_bill":"NT-250203-01","tanggal":"2025-02-03","jenis":"offline store","penjual":"Toko Bahan Kue Manis Jaya","cp_offline":null,"tujuan":"Restock Bahan","ongkir_ppn_disc":0,"total":435000,"rincian":[{"nama_barang":"Tepung terigu protein rendah 1 kg","quantity":10,"subtotal":135000},{"nama_barang":"Butter blend 1 kg","quantity":3,"subtotal":210000},{"nama_barang":"Gula pasir 1 kg","quantity":5,"subtotal":90000}]},{"id":2,"nomor_bill":"ORD-25020611","tanggal":"2025-02-06","jenis":"ecommerce","penjual":"Online Baking Supply","cp_offline":null,"tujuan":"Restock Packaging","ongkir_ppn_disc":15000,"total":235000,"rincian":[{"nama_barang":"Box kue 20x20 cm + mika","quantity":50,"subtotal":175000},{"nama_barang":"Kartu ucapan","quantity":100,"subtotal":45000}]},{"id":3,"nomor_bill":"NT-250214-02","tanggal":"2025-02-14","jenis":"offline store","penjual":"Toko Dekorasi Kue Pelangi","cp_offline":null,"tujuan":"Restock Decorative","ongkir_ppn_disc":0,"total":215000,"rincian":[{"nama_barang":"Sprinkle mix 250 g","quantity":4,"subtotal":60000},{"nama_barang":"Topper ulang tahun","quantity":20,"subtotal":80000},{"nama_barang":"Pewarna makanan gel","quantity":5,"subtotal":75000}]},{"id":4,"nomor_bill":"NT-250220-01","tanggal":"2025-02-20","jenis":"offline store","penjual":"Agen Gas & Air Sejahtera","cp_offline":null,"tujuan":"Operasional","ongkir_ppn_disc":0,"total":210000,"rincian":[{"nama_barang":"Gas LPG 12 kg","quantity":1,"subtotal":210000}]},{"id":5,"nomor_bill":"ORD-25022507","tanggal":"2025-02-25","jenis":"ecommerce","penjual":"Percetakan Stiker Mandiri","cp_offline":null,"tujuan":"Promote","ongkir_ppn_disc":12000,"total":132000,"rincian":[{"nama_barang":"Stiker label logo","quantity":200,"subtotal":120000}]},{"id":6,"nomor_bill":"NT-250302-01","tanggal":"2025-03-02","jenis":"offline store","penjual":"Toko Bahan Kue Manis Jaya","cp_offline":null,"tujuan":"Restock Bahan","ongkir_ppn_disc":0,"total":772000,"rincian":[{"nama_barang":"Tepung terigu protein rendah 1 kg","quantity":12,"subtotal":162000},{"nama_barang":"Butter blend 1 kg","quantity":4,"subtotal":280000},{"nama_barang":"Telur ayam 1 kg","quantity":5,"subtotal":140000},{"nama_barang":"Cokelat batang 1 kg","quantity":2,"subtotal":190000}]},{"id":7,"nomor_bill":"ORD-25030512","tanggal":"2025-03-05","jenis":"ecommerce","penjual":"Online Baking Supply","cp_offline":null,"tujuan":"Pengadaan","ongkir_ppn_disc":20000,"total":225000,"rincian":[{"nama_barang":"Loyang bulat 20 cm","quantity":4,"subtotal":160000},{"nama_barang":"Spatula silikon","quantity":3,"subtotal":45000}]},{"id":8,"nomor_bill":"NT-250312-03","tanggal":"2025-03-12","jenis":"offline store","penjual":"Toko Kemasan Sentosa","cp_offline":null,"tujuan":"Restock Packaging","ongkir_ppn_disc":0,"total":225000,"rincian":[{"nama_barang":"Box kue 22x22 cm","quantity":50,"subtotal":190000},{"nama_barang":"Pita satin","quantity":10,"subtotal":35000}]},{"id":9,"nomor_bill":"NT-250318-01","tanggal":"2025-03-18","jenis":"offline store","penjual":"Toko Bahan Kue Manis Jaya","cp_offline":null,"tujuan":"RnD","ongkir_ppn_disc":0,"total":255000,"rincian":[{"nama_barang":"Matcha powder 100 g","quantity":2,"subtotal":90000},{"nama_barang":"Keju cheddar 2 kg","quantity":1,"subtotal":165000}]},{"id":10,"nomor_bill":"NT-250328-01","tanggal":"2025-03-28","jenis":"offline store","penjual":"Agen Gas & Air Sejahtera","cp_offline":null,"tujuan":"Operasional","ongkir_ppn_disc":0,"total":290000,"rincian":[{"nama_barang":"Gas LPG 12 kg","quantity":1,"subtotal":210000},{"nama_barang":"Air galon","quantity":4,"subtotal":80000}]},{"id":11,"nomor_bill":"NT-250401-01","tanggal":"2025-04-01","jenis":"offline store","penjual":"Toko Bahan Kue Manis Jaya","cp_offline":null,"tujuan":"Restock Bahan","ongkir_ppn_disc":0,"total":837500,"rincian":[{"nama_barang":"Tepung terigu protein rendah 1 kg","quantity":15,"subtotal":202500},{"nama_barang":"Butter blend 1 kg","quantity":5,"subtotal":350000},{"nama_barang":"Gula halus 1 kg","quantity":6,"subtotal":117000},{"nama_barang":"Telur ayam 1 kg","quantity":6,"subtotal":168000}]},{"id":12,"nomor_bill":"ORD-25040409","tanggal":"2025-04-04","jenis":"ecommerce","penjual":"Online Baking Supply","cp_offline":null,"tujuan":"Restock Packaging","ongkir_ppn_disc":18000,"total":298000,"rincian":[{"nama_barang":"Box kue 20x20 cm + mika","quantity":80,"subtotal":280000}]},{"id":13,"nomor_bill":"NT-250409-02","tanggal":"2025-04-09","jenis":"offline store","penjual":"Toko Dekorasi Kue Pelangi","cp_offline":null,"tujuan":"Restock Decorative","ongkir_ppn_disc":0,"total":200000,"rincian":[{"nama_barang":"Bunga fondant","quantity":10,"subtotal":120000},{"nama_barang":"Topper ulang tahun","quantity":20,"subtotal":80000}]},{"id":14,"nomor_bill":"ORD-25041503","tanggal":"2025-04-15","jenis":"ecommerce","penjual":"Percetakan Stiker Mandiri","cp_offline":null,"tujuan":"Promote","ongkir_ppn_disc":12000,"total":162000,"rincian":[{"nama_barang":"Brosur promo A5","quantity":100,"subtotal":150000}]},{"id":15,"nomor_bill":"NT-250425-01","tanggal":"2025-04-25","jenis":"offline store","penjual":"Internal","cp_offline":null,"tujuan":"Reward Staf","ongkir_ppn_disc":0,"total":300000,"rincian":[{"nama_barang":"Bonus staf bulan April","quantity":2,"subtotal":300000}]}]};
+        const STORAGE_KEY = 'pingvelcake-demo-v1';
+        const NAMA_BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const DEFAULT_CASHFLOW = { start: '2025-04-01', end: '2025-04-14' };
+        const MAKS_HARI_CASHFLOW = 93;
+        const HALAMAN = ['pemasukan', 'pengeluaran', 'rekap', 'cashflow'];
+
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+        const clone = (obj) => JSON.parse(JSON.stringify(obj));
+        const angka = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        // Sama dengan number_format($n, 2) di aplikasi asli: 1,234,567.00
+        const format2 = (n) => angka(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // Sama dengan number_format($n, 0, ',', '.'): 1.234.567
+        const formatTitik = (n) => String(Math.round(angka(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const desimal = (n) => angka(n).toFixed(2);
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const modal = (id) => bootstrap.Modal.getOrCreateInstance(document.getElementById(id));
+
+        // ---------- Penyimpanan di browser ----------
+        function muat() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    if (Array.isArray(data.pemasukan) && Array.isArray(data.pengeluaran)) return data;
+                }
+            } catch (e) { /* penyimpanan tidak tersedia: pakai data awal */ }
+            return clone(SEED);
+        }
+        function simpan() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* abaikan */ }
+        }
+        let state = muat();
+        const idBaru = (list) => list.reduce((max, x) => Math.max(max, x.id), 0) + 1;
+
+        // ---------- Pesan ----------
+        function flash(pesan) {
+            $('#flash').innerHTML = `<div class="alert alert-success alert-dismissible fade show" role="alert">${esc(pesan)}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Tutup"></button></div>`;
+        }
+        function tampilkanError(form, pesan) {
+            const box = $('[data-error]', form);
+            box.textContent = pesan;
+            box.classList.remove('d-none');
+        }
+        function sembunyikanError(form) {
+            const box = $('[data-error]', form);
+            box.textContent = '';
+            box.classList.add('d-none');
+        }
+
+        // ---------- PEMASUKAN ----------
+        const fP = $('#formPemasukan');
+        const pengirimanP = $('#p_pengiriman');
+
+        function renderPemasukan() {
+            const data = [...state.pemasukan].sort((a, b) => b.tanggal.localeCompare(a.tanggal) || b.id - a.id);
+            const tbody = $('#tbodyPemasukan');
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="8">Belum ada pemasukan. Klik Tambah Pemasukan untuk mencatat transaksi pertama.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map((p, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${esc(p.nomor_invoice)}</td>
+                    <td>${esc(p.customer)}</td>
+                    <td>${esc(p.no_hp)}</td>
+                    <td>${esc(p.social_media)}</td>
+                    <td>${esc(p.pengiriman)}</td>
+                    <td>Rp ${format2(p.total_transaksi)}</td>
+                    <td>
+                        <div class="btn-group" role="group" aria-label="Aksi untuk invoice ${esc(p.nomor_invoice)}">
+                            <button type="button" class="btn btn-info btn-sm" data-act="detail-pemasukan" data-id="${p.id}">Detail</button>
+                            <button type="button" class="btn btn-warning btn-sm" data-act="edit-pemasukan" data-id="${p.id}">Edit</button>
+                            <button type="button" class="btn btn-danger btn-sm" data-act="hapus-pemasukan" data-id="${p.id}">Hapus</button>
+                        </div>
+                    </td>
+                </tr>`).join('');
+        }
+
+        // Nomor invoice: urutan dalam bulan + bulan + tahun (NNBBTT), contoh 030425.
+        function nomorInvoiceBerikut(tanggal) {
+            const [y, m] = tanggal.split('-');
+            const akhiran = m + y.slice(2);
+            const urutan = state.pemasukan
+                .filter((p) => p.tanggal.startsWith(`${y}-${m}`) && p.nomor_invoice.endsWith(akhiran))
+                .map((p) => parseInt(p.nomor_invoice.slice(0, -4), 10))
+                .filter(Number.isFinite);
+            return pad2((urutan.length ? Math.max(...urutan) : 0) + 1) + akhiran;
+        }
+        function hitungTotalPemasukan() {
+            const total = angka($('#p_sub_total').value) - angka($('#p_diskon').value) + angka($('#p_ongkir').value);
+            $('#p_total').value = total.toFixed(2);
+        }
+        function toggleJadwalPickup() {
+            $('#p_jadwal_row').hidden = pengirimanP.value !== 'self pickup';
+        }
+        function bukaFormPemasukan(item) {
+            fP.reset();
+            sembunyikanError(fP);
+            fP.dataset.id = item ? item.id : '';
+            $('#modalPemasukanTitle').textContent = item ? 'Edit Pemasukan' : 'Tambah Pemasukan';
+            $('#p_submit').textContent = item ? 'Update' : 'Simpan';
+            if (item) {
+                $('#p_nomor_invoice').value = item.nomor_invoice;
+                $('#p_tanggal').value = item.tanggal;
+                $('#p_customer').value = item.customer;
+                $('#p_no_hp').value = item.no_hp;
+                $('#p_social_media').value = item.social_media || '';
+                pengirimanP.value = item.pengiriman;
+                $('#p_jadwal_pickup').value = item.jadwal_pickup ? item.jadwal_pickup.slice(0, 16).replace(' ', 'T') : '';
+                $('#p_sub_total').value = item.sub_total;
+                $('#p_diskon').value = item.diskon;
+                $('#p_ongkir').value = item.ongkir;
+            }
+            toggleJadwalPickup();
+            hitungTotalPemasukan();
+            modal('modalPemasukan').show();
+        }
+        function detailPemasukan(p) {
+            const isi = {
+                nomor_invoice: p.nomor_invoice, tanggal: p.tanggal, customer: p.customer, no_hp: p.no_hp,
+                social_media: p.social_media, pengiriman: p.pengiriman, jadwal_pickup: p.jadwal_pickup || '',
+                sub_total: desimal(p.sub_total), diskon: desimal(p.diskon), ongkir: desimal(p.ongkir),
+                total_transaksi: desimal(p.total_transaksi),
+            };
+            Object.entries(isi).forEach(([k, v]) => { $(`#dp_${k}`).textContent = v; });
+            $('#dp_jadwal_wrap').hidden = p.pengiriman !== 'self pickup';
+            modal('modalDetailPemasukan').show();
+        }
+        function hapusPemasukan(id) {
+            if (!confirm('Hapus data ini?')) return;
+            state.pemasukan = state.pemasukan.filter((p) => p.id !== id);
+            simpan();
+            renderSemua();
+            flash('Pemasukan berhasil dihapus.');
+        }
+        function cetakLaporan() {
+            const data = [...state.pemasukan].sort((a, b) => a.id - b.id);
+            $('#printArea').innerHTML = `
+                <h2>Laporan Pemasukan</h2>
+                <table>
+                    <thead><tr><th>No</th><th>Nomor Invoice</th><th>Tanggal</th><th>Customer</th><th>NO HP</th><th>Sosial Media</th><th>Pengiriman</th><th>Subtotal</th><th>Diskon</th><th>Ongkir</th><th>Total Transaksi</th></tr></thead>
+                    <tbody>${data.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.nomor_invoice)}</td><td>${esc(p.tanggal)}</td><td>${esc(p.customer)}</td><td>${esc(p.no_hp)}</td><td>${esc(p.social_media)}</td><td>${esc(p.pengiriman)}</td><td>${desimal(p.sub_total)}</td><td>${desimal(p.diskon)}</td><td>${desimal(p.ongkir)}</td><td>Rp ${format2(p.total_transaksi)}</td></tr>`).join('')}</tbody>
+                </table>`;
+            window.print();
+        }
+
+        $('#p_tanggal').addEventListener('change', (e) => {
+            if (!fP.dataset.id && e.target.value) $('#p_nomor_invoice').value = nomorInvoiceBerikut(e.target.value);
+        });
+        ['#p_sub_total', '#p_diskon', '#p_ongkir'].forEach((s) => $(s).addEventListener('input', hitungTotalPemasukan));
+        pengirimanP.addEventListener('change', toggleJadwalPickup);
+
+        fP.addEventListener('submit', (e) => {
+            e.preventDefault();
+            sembunyikanError(fP);
+            const id = fP.dataset.id ? Number(fP.dataset.id) : null;
+            const nomor = $('#p_nomor_invoice').value.trim();
+            const customer = $('#p_customer').value.trim();
+            const noHp = $('#p_no_hp').value.trim();
+            if (!nomor) return tampilkanError(fP, 'Pilih tanggal dulu supaya nomor invoice terisi otomatis.');
+            if (!customer || !noHp) return tampilkanError(fP, 'Isi nama customer dan nomor HP.');
+            if (state.pemasukan.some((p) => p.nomor_invoice === nomor && p.id !== id)) {
+                return tampilkanError(fP, `Nomor invoice ${nomor} sudah dipakai. Periksa lagi tanggal transaksinya.`);
+            }
+            const sub = angka($('#p_sub_total').value);
+            const disk = angka($('#p_diskon').value);
+            const ong = angka($('#p_ongkir').value);
+            const jadwal = $('#p_jadwal_pickup').value;
+            const data = {
+                nomor_invoice: nomor,
+                tanggal: $('#p_tanggal').value,
+                customer,
+                no_hp: noHp,
+                social_media: $('#p_social_media').value.trim(),
+                pengiriman: pengirimanP.value,
+                sub_total: sub,
+                diskon: disk,
+                ongkir: ong,
+                total_transaksi: sub - disk + ong,
+                jadwal_pickup: pengirimanP.value === 'self pickup' && jadwal ? `${jadwal.replace('T', ' ')}:00` : null,
+            };
+            if (id) Object.assign(state.pemasukan.find((p) => p.id === id), data);
+            else state.pemasukan.push({ id: idBaru(state.pemasukan), ...data });
+            simpan();
+            modal('modalPemasukan').hide();
+            renderSemua();
+            flash(id ? 'Pemasukan berhasil diperbarui.' : 'Pemasukan berhasil ditambahkan.');
+        });
+
+        // ---------- PENGELUARAN ----------
+        const fG = $('#formPengeluaran');
+        const wadahRincian = $('#g_rincian');
+
+        function renderPengeluaran() {
+            const data = [...state.pengeluaran].sort((a, b) => a.id - b.id);
+            const tbody = $('#tbodyPengeluaran');
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="6">Belum ada pengeluaran. Klik Tambah Pengeluaran untuk mencatat nota pertama.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map((g, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${esc(g.nomor_bill)}</td>
+                    <td>${esc(g.tanggal)}</td>
+                    <td>${esc(g.penjual)}</td>
+                    <td>Rp ${format2(g.total)}</td>
+                    <td>
+                        <div class="btn-group" role="group" aria-label="Aksi untuk nota ${esc(g.nomor_bill)}">
+                            <button type="button" class="btn btn-info btn-sm" data-act="detail-pengeluaran" data-id="${g.id}">Detail</button>
+                            <button type="button" class="btn btn-warning btn-sm" data-act="edit-pengeluaran" data-id="${g.id}">Edit</button>
+                            <button type="button" class="btn btn-danger btn-sm" data-act="hapus-pengeluaran" data-id="${g.id}">Delete</button>
+                        </div>
+                    </td>
+                </tr>`).join('');
+        }
+        function tambahBarisRincian(r = {}) {
+            const baris = document.createElement('div');
+            baris.className = 'row g-2 rincian-item mb-2';
+            baris.innerHTML = `
+                <div class="col-12 col-md-4"><input type="text" class="form-control rincian-nama" placeholder="Nama Barang" aria-label="Nama barang" required value="${esc(r.nama_barang ?? '')}"></div>
+                <div class="col-4 col-md-3"><input type="number" class="form-control rincian-qty" placeholder="Qty" aria-label="Jumlah" required min="1" step="1" value="${esc(r.quantity ?? '')}"></div>
+                <div class="col-5 col-md-3"><input type="number" class="form-control rincian-subtotal" placeholder="Subtotal" aria-label="Subtotal" required min="0" step="any" value="${esc(r.subtotal ?? '')}"></div>
+                <div class="col-3 col-md-2"><button type="button" class="btn btn-danger btn-sm" data-act="hapus-rincian" aria-label="Hapus baris rincian">X</button></div>`;
+            wadahRincian.appendChild(baris);
+        }
+        function hitungTotalPengeluaran() {
+            const total = $$('.rincian-subtotal', wadahRincian).reduce((s, el) => s + angka(el.value), 0) + angka($('#g_ongkir').value);
+            $('#g_total').value = total.toFixed(2);
+        }
+        function toggleKontakOffline() {
+            $('#g_offline_extra').hidden = $('#g_jenis').value !== 'offline store';
+        }
+        function bukaFormPengeluaran(item) {
+            fG.reset();
+            sembunyikanError(fG);
+            fG.dataset.id = item ? item.id : '';
+            $('#modalPengeluaranTitle').textContent = item ? 'Edit Pengeluaran' : 'Tambah Pengeluaran';
+            $('#g_submit').textContent = item ? 'Update' : 'Simpan';
+            wadahRincian.innerHTML = '';
+            if (item) {
+                $('#g_nomor_bill').value = item.nomor_bill;
+                $('#g_tanggal').value = item.tanggal;
+                $('#g_jenis').value = item.jenis;
+                $('#g_penjual').value = item.penjual;
+                $('#g_tujuan').value = item.tujuan;
+                $('#g_ongkir').value = item.ongkir_ppn_disc ?? 0;
+                $('#g_cp_offline').value = item.cp_offline || '';
+                (item.rincian.length ? item.rincian : [{}]).forEach((r) => tambahBarisRincian(r));
+            } else {
+                tambahBarisRincian();
+            }
+            toggleKontakOffline();
+            hitungTotalPengeluaran();
+            modal('modalPengeluaran').show();
+        }
+        function detailPengeluaran(g) {
+            const isi = {
+                nomor_bill: g.nomor_bill, tanggal: g.tanggal, jenis: g.jenis, penjual: g.penjual, tujuan: g.tujuan,
+                ongkir_ppn_disc: desimal(g.ongkir_ppn_disc), cp_offline: g.cp_offline || '', total: desimal(g.total),
+            };
+            Object.entries(isi).forEach(([k, v]) => { $(`#dg_${k}`).textContent = v; });
+            $('#dg_cp_wrap').hidden = !g.cp_offline;
+            $('#dg_rincian').innerHTML = g.rincian.length
+                ? g.rincian.map((r) => `<tr><td>${esc(r.nama_barang)}</td><td>${esc(r.quantity)}</td><td>${desimal(r.subtotal)}</td></tr>`).join('')
+                : '<tr><td colspan="3">Belum ada rincian barang.</td></tr>';
+            modal('modalDetailPengeluaran').show();
+        }
+        function hapusPengeluaran(id) {
+            if (!confirm('Hapus data ini?')) return;
+            state.pengeluaran = state.pengeluaran.filter((g) => g.id !== id);
+            simpan();
+            renderSemua();
+            flash('Pengeluaran berhasil dihapus.');
+        }
+
+        wadahRincian.addEventListener('input', hitungTotalPengeluaran);
+        $('#g_ongkir').addEventListener('input', hitungTotalPengeluaran);
+        $('#g_jenis').addEventListener('change', toggleKontakOffline);
+
+        fG.addEventListener('submit', (e) => {
+            e.preventDefault();
+            sembunyikanError(fG);
+            const id = fG.dataset.id ? Number(fG.dataset.id) : null;
+            const nomor = $('#g_nomor_bill').value.trim();
+            const penjual = $('#g_penjual').value.trim();
+            if (!nomor || !penjual) return tampilkanError(fG, 'Isi nomor bill dan nama penjual.');
+            if (state.pengeluaran.some((g) => g.nomor_bill === nomor && g.id !== id)) {
+                return tampilkanError(fG, `Nomor bill ${nomor} sudah dipakai. Gunakan nomor lain.`);
+            }
+            const rincian = $$('.rincian-item', wadahRincian).map((row) => ({
+                nama_barang: $('.rincian-nama', row).value.trim(),
+                quantity: parseInt($('.rincian-qty', row).value, 10),
+                subtotal: angka($('.rincian-subtotal', row).value),
+            }));
+            if (!rincian.length) return tampilkanError(fG, 'Tambahkan minimal satu rincian barang.');
+            const ongkir = angka($('#g_ongkir').value);
+            const jenis = $('#g_jenis').value;
+            const data = {
+                nomor_bill: nomor,
+                tanggal: $('#g_tanggal').value,
+                jenis,
+                penjual,
+                cp_offline: jenis === 'offline store' ? ($('#g_cp_offline').value.trim() || null) : null,
+                tujuan: $('#g_tujuan').value,
+                ongkir_ppn_disc: ongkir,
+                rincian,
+                total: rincian.reduce((s, r) => s + r.subtotal, 0) + ongkir,
+            };
+            if (id) Object.assign(state.pengeluaran.find((g) => g.id === id), data);
+            else state.pengeluaran.push({ id: idBaru(state.pengeluaran), ...data });
+            simpan();
+            modal('modalPengeluaran').hide();
+            renderSemua();
+            flash(id ? 'Pengeluaran berhasil diperbarui.' : 'Pengeluaran berhasil ditambahkan.');
+        });
+
+        // ---------- REKAP ----------
+        let filterBulan = '';
+        const namaBulan = (ym) => { const [y, m] = ym.split('-'); return `${NAMA_BULAN[Number(m) - 1]} ${y}`; };
+
+        // Sama dengan aplikasi asli: pemasukan dari subtotal, pengeluaran dari total nota.
+        function hitungRekap() {
+            const peta = new Map();
+            const ambil = (bulan) => {
+                if (!peta.has(bulan)) peta.set(bulan, { bulan, pemasukan: 0, pengeluaran: 0 });
+                return peta.get(bulan);
+            };
+            state.pemasukan.forEach((p) => { ambil(p.tanggal.slice(0, 7)).pemasukan += angka(p.sub_total); });
+            state.pengeluaran.forEach((g) => { ambil(g.tanggal.slice(0, 7)).pengeluaran += angka(g.total); });
+            return [...peta.values()]
+                .map((r) => ({ ...r, margin: r.pemasukan - r.pengeluaran }))
+                .sort((a, b) => b.bulan.localeCompare(a.bulan));
+        }
+        function renderRekap() {
+            const rows = hitungRekap().filter((r) => !filterBulan || r.bulan === filterBulan);
+            const kosong = filterBulan ? `Tidak ada transaksi di ${namaBulan(filterBulan)}.` : 'Belum ada transaksi untuk direkap.';
+            $('#tbodyRekap').innerHTML = rows.length
+                ? rows.map((r) => `<tr><td>${namaBulan(r.bulan)}</td><td>Rp ${format2(r.pemasukan)}</td><td>Rp ${format2(r.pengeluaran)}</td><td>Rp ${format2(r.margin)}</td></tr>`).join('')
+                : `<tr><td colspan="4">${kosong}</td></tr>`;
+        }
+        $('#formRekap').addEventListener('submit', (e) => {
+            e.preventDefault();
+            filterBulan = $('#filterBulan').value;
+            renderRekap();
+        });
+
+        // ---------- CASHFLOW ----------
+        let rentang = { ...DEFAULT_CASHFLOW };
+        const keTanggal = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+        const keString = (dt) => `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+        const labelHari = (s) => { const [y, m, d] = s.split('-'); return `${d} ${BULAN_SINGKAT[Number(m) - 1]} ${y}`; };
+        const peringatan = (teks) => `<div class="alert alert-warning" role="alert">${esc(teks)}</div>`;
+
+        function renderCashflow() {
+            $('#startDate').value = rentang.start;
+            $('#endDate').value = rentang.end;
+            const msg = $('#cashflowMsg');
+            const grid = $('#cashflowGrid');
+            msg.innerHTML = '';
+            const mulai = keTanggal(rentang.start);
+            const hari = Math.round((keTanggal(rentang.end) - mulai) / 86400000) + 1;
+            if (hari < 1) {
+                msg.innerHTML = peringatan('Tanggal mulai harus sama dengan atau sebelum tanggal akhir.');
+                grid.innerHTML = '';
+                return;
+            }
+            if (hari > MAKS_HARI_CASHFLOW) {
+                msg.innerHTML = peringatan(`Pilih rentang maksimal ${MAKS_HARI_CASHFLOW} hari supaya catatan tetap mudah dibaca.`);
+                grid.innerHTML = '';
+                return;
+            }
+            // Urutan sama dengan aplikasi asli: pemasukan dulu, lalu pengeluaran.
+            const transaksi = [
+                ...state.pemasukan.map((p) => ({
+                    tanggal: p.tanggal, tipe: 'Pemasukan',
+                    ket: p.social_media ? `${p.customer} (${p.social_media})` : p.customer,
+                    jumlah: p.total_transaksi,
+                })),
+                ...state.pengeluaran.map((g) => ({ tanggal: g.tanggal, tipe: 'Pengeluaran', ket: g.penjual, jumlah: g.total })),
+            ];
+            let html = '';
+            for (let i = 0; i < hari; i++) {
+                const tgl = keString(new Date(mulai.getTime() + i * 86400000));
+                const isi = transaksi.filter((t) => t.tanggal === tgl);
+                const kartu = isi.length
+                    ? isi.map((t) => `
+                        <div class="p-2 mb-2 rounded ${t.tipe === 'Pemasukan' ? 'bg-success' : 'bg-danger'} text-white">
+                            <small><strong>${t.tipe}</strong></small><br>
+                            ${esc(t.ket)}<br>
+                            <strong>Rp ${formatTitik(t.jumlah)}</strong>
+                        </div>`).join('')
+                    : '<p class="text-muted text-center">Tidak ada transaksi</p>';
+                html += `
+                    <div class="col-md-3 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-light text-center"><strong>${labelHari(tgl)}</strong></div>
+                            <div class="card-body p-2">${kartu}</div>
+                        </div>
+                    </div>`;
+            }
+            grid.innerHTML = html;
+        }
+        $('#formCashflow').addEventListener('submit', (e) => {
+            e.preventDefault();
+            rentang = { start: $('#startDate').value, end: $('#endDate').value };
+            renderCashflow();
+        });
+
+        // ---------- Navigasi & aksi ----------
+        function renderSemua() {
+            renderPemasukan();
+            renderPengeluaran();
+            renderRekap();
+            renderCashflow();
+        }
+        function rute() {
+            const hash = location.hash.slice(1);
+            const nama = HALAMAN.includes(hash) ? hash : 'pemasukan';
+            $$('[data-page]').forEach((s) => { s.hidden = s.dataset.page !== nama; });
+            $$('[data-route]').forEach((a) => {
+                const aktif = a.dataset.route === nama;
+                a.classList.toggle('active', aktif);
+                if (aktif) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+            });
+            $('#flash').innerHTML = '';
+            const nav = $('#navbarNav');
+            if (nav.classList.contains('show')) bootstrap.Collapse.getOrCreateInstance(nav).hide();
+            window.scrollTo(0, 0);
+        }
+        window.addEventListener('hashchange', rute);
+
+        document.addEventListener('click', (e) => {
+            const el = e.target.closest('[data-act]');
+            if (!el) return;
+            const id = Number(el.dataset.id);
+            switch (el.dataset.act) {
+                case 'tambah-pemasukan': bukaFormPemasukan(null); break;
+                case 'edit-pemasukan': bukaFormPemasukan(state.pemasukan.find((p) => p.id === id)); break;
+                case 'detail-pemasukan': detailPemasukan(state.pemasukan.find((p) => p.id === id)); break;
+                case 'hapus-pemasukan': hapusPemasukan(id); break;
+                case 'laporan': cetakLaporan(); break;
+                case 'tambah-pengeluaran': bukaFormPengeluaran(null); break;
+                case 'edit-pengeluaran': bukaFormPengeluaran(state.pengeluaran.find((g) => g.id === id)); break;
+                case 'detail-pengeluaran': detailPengeluaran(state.pengeluaran.find((g) => g.id === id)); break;
+                case 'hapus-pengeluaran': hapusPengeluaran(id); break;
+                case 'tambah-rincian':
+                    tambahBarisRincian();
+                    $('.rincian-nama', wadahRincian.lastElementChild).focus();
+                    break;
+                case 'hapus-rincian':
+                    el.closest('.rincian-item').remove();
+                    hitungTotalPengeluaran();
+                    break;
+                case 'reset-rekap':
+                    filterBulan = '';
+                    $('#filterBulan').value = '';
+                    renderRekap();
+                    break;
+                case 'reset':
+                    if (!confirm('Kembalikan semua data ke kondisi awal? Data yang Anda tambahkan atau ubah akan hilang.')) break;
+                    state = clone(SEED);
+                    simpan();
+                    filterBulan = '';
+                    $('#filterBulan').value = '';
+                    rentang = { ...DEFAULT_CASHFLOW };
+                    renderSemua();
+                    flash('Data demo sudah dikembalikan ke kondisi awal.');
+                    break;
+                default: break;
+            }
+        });
+
+        renderSemua();
+        rute();
+    })();
+    </script>
+</body>
+</html>

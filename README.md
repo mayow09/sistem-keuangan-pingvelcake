@@ -71,4 +71,4 @@ Aplikasi bisa dibuka di http://localhost:8000.
 
 ## Pembuat
 
-**[Nama Kamu]** · [LinkedIn](https://www.linkedin.com/in/username-kamu)
+**Maylani Rahma Purwanti** · [LinkedIn](https://www.linkedin.com/in/maylanirahmap)

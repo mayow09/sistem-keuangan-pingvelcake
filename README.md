@@ -1,6 +1,7 @@
 # Pingvel Cake – Sistem Pencatatan Keuangan
 
 Aplikasi web untuk mencatat keuangan usaha kue Pingvel Cake: penjualan (pemasukan), pembelian dan biaya (pengeluaran), rekap bulanan, serta catatan arus kas. Dibangun dengan Laravel 12 dan MySQL.
+**Demo interaktif:** [mayow09.github.io/sistem-keuangan-pingvelcake](https://mayow09.github.io/sistem-keuangan-pingvelcake/) (versi demo dengan data fiktif; perubahan hanya tersimpan di browser)
 
 > Semua data pada screenshot di bawah adalah **data fiktif** untuk keperluan demo.
 

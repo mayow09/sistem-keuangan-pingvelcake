@@ -58,7 +58,7 @@ php artisan migrate
 php artisan serve
 ```
 
-Aplikasi bisa dibuka di http://localhost:8000.
+Setelah `php artisan serve` berjalan, buka `http://localhost:8000` di browser.
 
 > Menu Rekap memakai fungsi `DATE_FORMAT` milik MySQL, jadi gunakan MySQL/MariaDB (bukan SQLite).
 

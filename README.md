@@ -44,7 +44,7 @@ Laravel 12 (PHP 8.2+) · MySQL/MariaDB · Blade + Bootstrap 5 · JavaScript (Fet
 Prasyarat: PHP 8.2+, Composer, dan MySQL/MariaDB.
 
 ```bash
-git clone https://github.com/<mayow09>/sistem-keuangan-pingvelcake.git
+git clone https://github.com/mayow09/sistem-keuangan-pingvelcake.git
 cd sistem-keuangan-pingvelcake
 composer install
 cp .env.example .env
